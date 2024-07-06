@@ -4,6 +4,7 @@ import "./FindNearestPetrolPump.css";
 const FindNearestPetrolPump = () => {
   useEffect(() => {
     let map;
+    let currentPosition;
 
     const loadScript = (src) => {
       return new Promise((resolve, reject) => {
@@ -60,12 +61,8 @@ const FindNearestPetrolPump = () => {
         navigator.geolocation.getCurrentPosition(
           (position) => {
             const { latitude, longitude } = position.coords;
-            searchNearbyPetrolPump(
-              platform,
-              { lat: latitude, lng: longitude },
-              map,
-              ui
-            );
+            currentPosition = { lat: latitude, lng: longitude };
+            searchNearbyPetrolPump(platform, currentPosition, map, ui);
           },
           (error) => {
             console.error("Error getting geolocation:", error);
@@ -88,7 +85,7 @@ const FindNearestPetrolPump = () => {
           const locations = result.items;
           if (locations.length > 0) {
             addLocationsToMap(locations, map, ui);
-            addLocationsToPanel(locations); // Add this line to update the panel
+            addLocationsToPanel(locations, coordinates);
             calculateRouteToPetrolPump(platform, coordinates, locations[0].position);
           } else {
             alert("No petrol pumps found nearby.");
@@ -139,8 +136,7 @@ const FindNearestPetrolPump = () => {
         transportMode: "car",
         origin: `${start.lat},${start.lng}`,
         destination: `${end.lat},${end.lng}`,
-        return:
-          "polyline,turnByTurnActions,actions,instructions,travelSummary",
+        return: "polyline,turnByTurnActions,actions,instructions,travelSummary",
       };
 
       router.calculateRoute(
@@ -157,6 +153,7 @@ const FindNearestPetrolPump = () => {
     const onSuccess = (result, platform) => {
       const route = result.routes[0];
       addRouteToMap(route);
+      addRouteInstructions(route.sections[0].actions);
     };
 
     const onError = (error) => {
@@ -172,7 +169,7 @@ const FindNearestPetrolPump = () => {
 
         let polyline = new window.H.map.Polyline(linestring, {
           style: {
-            lineWidth: 6, 
+            lineWidth: 4,
             strokeColor: "rgb(34,204,0)",
           },
         });
@@ -184,41 +181,89 @@ const FindNearestPetrolPump = () => {
       });
     };
 
-    const addLocationsToPanel = (locations) => {
+    const addLocationsToPanel = (locations, currentPosition) => {
       const locationsContainer = document.getElementById("panel");
       locationsContainer.innerHTML = '';
-
-      locations.forEach((location) => {
+    
+      locations.forEach((location, index) => {
         const divLabel = document.createElement("div");
-        let content = `<strong style="font-size: large;">${location.title}</strong><br/>`;
+        divLabel.className = "petrol-pump-item"; // Add a class for styling if needed
+    
+        let content = `<strong style="font-size: large;">${index + 1}. ${location.title}</strong><br/>`;
         const position = location.position;
-
+    
+        const distance = calculateDistance(currentPosition, position);
+    
         content += `<strong>Address:</strong> ${location.address.label}<br/>`;
         content += `<strong>Position:</strong> ${position.lat.toFixed(4)}N, ${position.lng.toFixed(4)}E<br/>`;
-
+        content += `<strong>Distance:</strong> ${distance.toFixed(2)} km<br/>`;
+    
         divLabel.innerHTML = content;
         locationsContainer.appendChild(divLabel);
-
-        console.log("Nearest petrol pump:");
+    
+        console.log(`Nearest petrol pump ${index + 1}:`);
         console.log("Name:", location.title);
-        console.log("Distance:", location.distance);
+        console.log("Distance:", distance);
       });
     };
 
+    const calculateDistance = (coord1, coord2) => {
+      const toRad = (value) => (value * Math.PI) / 180;
+      const R = 6371; // Radius of the Earth in km
+      const dLat = toRad(coord2.lat - coord1.lat);
+      const dLon = toRad(coord2.lng - coord1.lng);
+      const lat1 = toRad(coord1.lat);
+      const lat2 = toRad(coord2.lat);
+
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+
+      return distance;
+    };
+
+    const addRouteInstructions = (actions) => {
+      const instructionsContainer = document.getElementById("route-instructions");
+      instructionsContainer.innerHTML = ''; // Clear previous instructions if any
+
+      const instructionList = document.createElement("ul");
+      instructionList.className = "instruction-list";
+
+      actions.forEach((action) => {
+        const instructionItem = document.createElement("li");
+        instructionItem.className = "instruction-item";
+
+
+        const instructionText = document.createElement("strong");
+        instructionText.textContent = action.instruction;
+
+        instructionItem.appendChild(instructionText);
+        instructionList.appendChild(instructionItem);
+      });
+
+      instructionsContainer.appendChild(instructionList);
+    };
+
     loadMapScripts();
+
+    return () => {
+      if (map) {
+        map.dispose();
+      }
+    };
   }, []);
 
   return (
     <div className="container">
       <div className="page-header">
         <h1>Find Nearest Petrol Pump</h1>
-        <p>
-          Request the location of the nearest petrol pump and display it on
-          the map.
-        </p>
       </div>
-      <div id="panel" className="panel"></div>
-      <div id="map" style={{ width: "100%", height: "800px" }}></div>
+      <div id="map" style={{ height: "500px", width: "100%" }}></div>
+      <div className="panel" id="panel"></div>
+      <div className="section-heading">Route Instructions</div>
+      <div id="route-instructions" className="panel"></div>
     </div>
   );
 };
