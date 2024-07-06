@@ -35,14 +35,14 @@ const FindNearestPetrolPump = () => {
       }
 
       const platform = new window.H.service.Platform({
-        apikey: "ZAQJXrHyf6ID9j-OShN8KhD2E01-Uk_t8gev6lWFcMM", 
+        apikey: "ZAQJXrHyf6ID9j-OShN8KhD2E01-Uk_t8gev6lWFcMM",
       });
       const defaultLayers = platform.createDefaultLayers();
 
       if (!map) {
         map = new window.H.Map(
           document.getElementById("map"),
-          defaultLayers.raster.normal.map,
+          defaultLayers.vector.normal.map,
           {
             center: { lat: 37.376, lng: -122.034 },
             zoom: 15,
@@ -50,9 +50,12 @@ const FindNearestPetrolPump = () => {
           }
         );
 
-        window.addEventListener("resize", () => map.getViewPort().resize());
-
+        const behavior = new window.H.mapevents.Behavior(
+          new window.H.mapevents.MapEvents(map)
+        );
         const ui = window.H.ui.UI.createDefault(map, defaultLayers);
+
+        window.addEventListener("resize", () => map.getViewPort().resize());
 
         navigator.geolocation.getCurrentPosition(
           (position) => {
@@ -76,7 +79,7 @@ const FindNearestPetrolPump = () => {
       const searchParameters = {
         q: "petrol pump",
         at: `${coordinates.lat},${coordinates.lng}`,
-        limit: 1,
+        limit: 3,
       };
 
       geocoder.discover(
@@ -85,7 +88,8 @@ const FindNearestPetrolPump = () => {
           const locations = result.items;
           if (locations.length > 0) {
             addLocationsToMap(locations, map, ui);
-            addLocationsToPanel(locations[0]);
+            addLocationsToPanel(locations); // Add this line to update the panel
+            calculateRouteToPetrolPump(platform, coordinates, locations[0].position);
           } else {
             alert("No petrol pumps found nearby.");
           }
@@ -128,23 +132,77 @@ const FindNearestPetrolPump = () => {
       ui.addBubble(bubble);
     };
 
-    const addLocationsToPanel = (location) => {
+    const calculateRouteToPetrolPump = (platform, start, end) => {
+      const router = platform.getRoutingService(null, 8);
+      const routeRequestParams = {
+        routingMode: "fast",
+        transportMode: "car",
+        origin: `${start.lat},${start.lng}`,
+        destination: `${end.lat},${end.lng}`,
+        return:
+          "polyline,turnByTurnActions,actions,instructions,travelSummary",
+      };
+
+      router.calculateRoute(
+        routeRequestParams,
+        (result) => {
+          onSuccess(result, platform);
+        },
+        (error) => {
+          onError(error);
+        }
+      );
+    };
+
+    const onSuccess = (result, platform) => {
+      const route = result.routes[0];
+      addRouteToMap(route);
+    };
+
+    const onError = (error) => {
+      console.error("Routing error:", error);
+      alert("Failed to calculate the route.");
+    };
+
+    const addRouteToMap = (route) => {
+      route.sections.forEach((section) => {
+        let linestring = window.H.geo.LineString.fromFlexiblePolyline(
+          section.polyline
+        );
+
+        let polyline = new window.H.map.Polyline(linestring, {
+          style: {
+            lineWidth: 6, 
+            strokeColor: "rgb(34,204,0)",
+          },
+        });
+
+        map.addObject(polyline);
+        map.getViewModel().setLookAtData({
+          bounds: polyline.getBoundingBox(),
+        });
+      });
+    };
+
+    const addLocationsToPanel = (locations) => {
       const locationsContainer = document.getElementById("panel");
       locationsContainer.innerHTML = '';
 
-      const divLabel = document.createElement("div");
-      let content = `<strong style="font-size: large;">${location.title}</strong><br/>`;
-      const position = location.position;
+      locations.forEach((location) => {
+        const divLabel = document.createElement("div");
+        let content = `<strong style="font-size: large;">${location.title}</strong><br/>`;
+        const position = location.position;
 
-      content += `<strong>address:</strong> ${location.address.label}<br/>`;
-      content += `<strong>position:</strong> ${position.lat.toFixed(4)}N, ${position.lng.toFixed(4)}E<br/>`;
+        content += `<strong>Address:</strong> ${location.address.label}<br/>`;
+        content += `<strong>Position:</strong> ${position.lat.toFixed(4)}N, ${position.lng.toFixed(4)}E<br/>`;
 
-      divLabel.innerHTML = content;
-      locationsContainer.appendChild(divLabel);
+        divLabel.innerHTML = content;
+        locationsContainer.appendChild(divLabel);
 
-      console.log("Nearest petrol pump:");
-      console.log("Name:", location.title);
-      console.log("Distance:", location.distance); 
+        console.log("Nearest petrol pump:");
+        console.log("Name:", location.title);
+        console.log("Distance:", location.distance);
+      });
     };
 
     loadMapScripts();
@@ -155,8 +213,8 @@ const FindNearestPetrolPump = () => {
       <div className="page-header">
         <h1>Find Nearest Petrol Pump</h1>
         <p>
-          Request the location of the nearest petrol pump and display it on the
-          map.
+          Request the location of the nearest petrol pump and display it on
+          the map.
         </p>
       </div>
       <div id="panel" className="panel"></div>
