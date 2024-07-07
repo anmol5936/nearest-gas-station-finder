@@ -36,7 +36,7 @@ const FindNearestPetrolPump = () => {
       }
 
       const platform = new window.H.service.Platform({
-        apikey: "ZAQJXrHyf6ID9j-OShN8KhD2E01-Uk_t8gev6lWFcMM",
+        apikey: "dj9cwnY6ifjxwJozM4XYZ7rJ99ABe7wbrv7A-bMwzvo",
       });
       const defaultLayers = platform.createDefaultLayers();
 
@@ -54,6 +54,9 @@ const FindNearestPetrolPump = () => {
         const behavior = new window.H.mapevents.Behavior(
           new window.H.mapevents.MapEvents(map)
         );
+
+        map.addLayer(defaultLayers.vector.traffic.map);
+
         const ui = window.H.ui.UI.createDefault(map, defaultLayers);
 
         window.addEventListener("resize", () => map.getViewPort().resize());
@@ -169,8 +172,8 @@ const FindNearestPetrolPump = () => {
 
         let polyline = new window.H.map.Polyline(linestring, {
           style: {
-            lineWidth: 4,
-            strokeColor: "rgb(34,204,0)",
+            lineWidth: 6,
+            strokeColor: "rgb(25,140,255)",
           },
         });
 
@@ -184,24 +187,22 @@ const FindNearestPetrolPump = () => {
     const addLocationsToPanel = (locations, currentPosition) => {
       const locationsContainer = document.getElementById("panel");
       locationsContainer.innerHTML = '';
-    
-      locations.forEach((location, index) => {
+
+      locations.forEach((location) => {
         const divLabel = document.createElement("div");
-        divLabel.className = "petrol-pump-item"; // Add a class for styling if needed
-    
-        let content = `<strong style="font-size: large;">${index + 1}. ${location.title}</strong><br/>`;
+        let content = `<strong style="font-size: large;">${location.title}</strong><br/>`;
         const position = location.position;
-    
+
         const distance = calculateDistance(currentPosition, position);
-    
+
         content += `<strong>Address:</strong> ${location.address.label}<br/>`;
         content += `<strong>Position:</strong> ${position.lat.toFixed(4)}N, ${position.lng.toFixed(4)}E<br/>`;
         content += `<strong>Distance:</strong> ${distance.toFixed(2)} km<br/>`;
-    
+
         divLabel.innerHTML = content;
         locationsContainer.appendChild(divLabel);
-    
-        console.log(`Nearest petrol pump ${index + 1}:`);
+
+        console.log("Nearest petrol pump:");
         console.log("Name:", location.title);
         console.log("Distance:", distance);
       });
@@ -226,7 +227,7 @@ const FindNearestPetrolPump = () => {
 
     const addRouteInstructions = (actions) => {
       const instructionsContainer = document.getElementById("route-instructions");
-      instructionsContainer.innerHTML = ''; // Clear previous instructions if any
+      instructionsContainer.innerHTML = ''; 
 
       const instructionList = document.createElement("ul");
       instructionList.className = "instruction-list";
@@ -234,7 +235,6 @@ const FindNearestPetrolPump = () => {
       actions.forEach((action) => {
         const instructionItem = document.createElement("li");
         instructionItem.className = "instruction-item";
-
 
         const instructionText = document.createElement("strong");
         instructionText.textContent = action.instruction;
