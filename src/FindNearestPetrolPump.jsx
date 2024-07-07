@@ -77,7 +77,7 @@ const FindNearestPetrolPump = () => {
     const searchNearbyPetrolPump = (platform, coordinates, map, ui) => {
       const geocoder = platform.getSearchService();
       const searchParameters = {
-        q: "petrol pump",
+        q: "petrol pump  fuel station",
         at: `${coordinates.lat},${coordinates.lng}`,
         limit: 3,
       };
