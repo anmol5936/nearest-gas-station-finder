@@ -5,6 +5,7 @@ const FindNearestPetrolPump = () => {
   useEffect(() => {
     let map;
     let currentPosition;
+    let watchId;
 
     const loadScript = (src) => {
       return new Promise((resolve, reject) => {
@@ -61,15 +62,17 @@ const FindNearestPetrolPump = () => {
 
         window.addEventListener("resize", () => map.getViewPort().resize());
 
-        navigator.geolocation.getCurrentPosition(
+        watchId = navigator.geolocation.watchPosition(
           (position) => {
             const { latitude, longitude } = position.coords;
             currentPosition = { lat: latitude, lng: longitude };
+            map.setCenter(currentPosition);
             searchNearbyPetrolPump(platform, currentPosition, map, ui);
           },
           (error) => {
             console.error("Error getting geolocation:", error);
-          }
+          },
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 1000 }
         );
       }
     };
@@ -77,7 +80,7 @@ const FindNearestPetrolPump = () => {
     const searchNearbyPetrolPump = (platform, coordinates, map, ui) => {
       const geocoder = platform.getSearchService();
       const searchParameters = {
-        q: "petrol pump  fuel station",
+        q: "petrol pump fuel station",
         at: `${coordinates.lat},${coordinates.lng}`,
         limit: 3,
       };
@@ -251,6 +254,9 @@ const FindNearestPetrolPump = () => {
     return () => {
       if (map) {
         map.dispose();
+      }
+      if (watchId) {
+        navigator.geolocation.clearWatch(watchId);
       }
     };
   }, []);
