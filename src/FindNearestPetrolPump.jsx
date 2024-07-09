@@ -65,9 +65,13 @@ const FindNearestPetrolPump = () => {
         watchId = navigator.geolocation.watchPosition(
           (position) => {
             const { latitude, longitude } = position.coords;
-            currentPosition = { lat: latitude, lng: longitude };
-            map.setCenter(currentPosition);
-            searchNearbyPetrolPump(platform, currentPosition, map, ui);
+            const newCoordinates = { lat: latitude, lng: longitude };
+
+            if (!currentPosition || calculateDistance(currentPosition, newCoordinates) > 0.01) {
+              currentPosition = newCoordinates;
+              map.setCenter(currentPosition);
+              searchNearbyPetrolPump(platform, currentPosition, map, ui);
+            }
           },
           (error) => {
             console.error("Error getting geolocation:", error);
@@ -111,14 +115,17 @@ const FindNearestPetrolPump = () => {
       locations.forEach((location) => {
         const marker = new window.H.map.Marker(location.position);
         marker.label = location.title;
+        marker.description = location.address.label;
         group.addObject(marker);
       });
 
       group.addEventListener(
         "tap",
         (evt) => {
-          map.setCenter(evt.target.getGeometry());
-          openBubble(evt.target.getGeometry(), evt.target.label, ui);
+          const position = evt.target.getGeometry();
+          const label = evt.target.label;
+          const description = evt.target.description;
+          openBubble(position, label, description, ui);
         },
         false
       );
@@ -130,9 +137,9 @@ const FindNearestPetrolPump = () => {
       map.setZoom(Math.min(map.getZoom(), 16));
     };
 
-    const openBubble = (position, text, ui) => {
-      const bubble = new window.H.ui.InfoBubble(position, { content: text });
-      ui.addBubble(bubble);
+    const openBubble = (position) => {
+      map.setCenter(position);
+      map.setZoom(18);
     };
 
     const calculateRouteToPetrolPump = (platform, start, end) => {
